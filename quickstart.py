@@ -45,7 +45,7 @@ def main():
         .list(
             calendarId="primary",
             timeMin=now,
-            maxResults=10,
+            maxResults=15,
             singleEvents=True,
             orderBy="startTime",
         )
@@ -65,6 +65,8 @@ def main():
   except HttpError as error:
     print(f"An error occurred: {error}")
 
-
+    #__name__ is a special built-in variable that represent the name of the module (a Python file).
+    #When a Python file is run directly (as opposed to being imported as a module in another file),
+    #Python autmoatically sets the __name__ variable to "__main__"
 if __name__ == "__main__":
   main()

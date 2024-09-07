@@ -9,10 +9,12 @@ from quickstart import main
 #Initial function to run when you open the program. It prompts you with an event you'd like to add. 
     #Potentially it should just prompt you with the option to run?
 def tool_start():
-    event_input = input ("Welcome! Please enter your event below: \n")
-    return event_input
-def add_event():
-    print ("something")
-
-
+    event_summary = input ('Welcome! Please enter your event below: \n')
+    #if event is validated
+    event_priority = input("Choose a event priority: \n")
+    #if event is validated
+    event_length = input('How long will it take: \n')
+    #if event is validated
+    event_deadline = input ('Choose the deadline of the event: \n')
+    return event_summary
 tool_start()
