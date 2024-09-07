@@ -8,13 +8,18 @@ from quickstart import main
 
 #Initial function to run when you open the program. It prompts you with an event you'd like to add. 
     #Potentially it should just prompt you with the option to run?
+
+
+def collect_event_title ():
+    while True:
+        event_summary = input (('Welcome! Please enter your event below: \n'))
+        if event_summary == '':
+            print ('You need to add a title!\n')
+        elif len(event_summary) >= 10:
+            print (f'Too long! Maximum 10 characters, you typed {len(event_summary)} characters\n')
+        else: break
+        
 def tool_start():
-    event_summary = input ('Welcome! Please enter your event below: \n')
-    #if event is validated
-    event_priority = input("Choose a event priority: \n")
-    #if event is validated
-    event_length = input('How long will it take: \n')
-    #if event is validated
-    event_deadline = input ('Choose the deadline of the event: \n')
-    return event_summary
+    collect_event_title()
+
 tool_start()
