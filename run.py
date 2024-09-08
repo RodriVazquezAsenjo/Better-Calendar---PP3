@@ -2,14 +2,12 @@
 # You can delete these comments, but do not change the name of this file
 # Write your code to expect a terminal of 80 characters wide and 24 rows high
 
-
 #importing the main function from quickstart to obtain the upcoming events
 from quickstart import main
 from datetime import datetime
 
 #Initial function to run when you open the program. It prompts you with an event you'd like to add. 
     #Potentially it should just prompt you with the option to run?
-
 
 def collect_event_title ():
     while True:
@@ -56,9 +54,10 @@ def collect_event_deadline():
             raise ValueError("Oh no! Seems like you didn't enter a deadline, try again!.\n")
         try:
             event_deadline = datetime.strptime(event_deadline, '%d/%m/%Y %H:%M')
-            break
+            if event_deadline > datetime.now():
+                break
         except ValueError as e:
-            print('The deadline should be in date, hours and minutes (day/month/year hours:minutes format), please try again!')
+            print('The deadline should be a future date,in the follwoing format (day/month/year hours:minutes), please try again! Error: {e}')
     print("Nice! Let's move to the next step\n")
     return event_deadline
 
@@ -69,4 +68,7 @@ def tool_start():
     collect_event_duration()
     collect_event_deadline()
 
+#Obtain a list of events from now to the deadline input. 
+
 tool_start()
+main()
