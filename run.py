@@ -79,7 +79,7 @@ def collect_event_duration():
         except ValueError as e:
             print('The duration should be in hours and minutes (hours:minutes format), please try again!')
     print("Nice! Let's move to the next step\n")
-    return int(event_duration)
+    return event_duration
 
 def collect_event_deadline():
     while True:
@@ -136,6 +136,5 @@ def get_existing_events(event_deadline):
     except HttpError as error:
         print(f"An error occurred: {error}")
     
-#tool_start()
-event_deadline = collect_event_deadline()
-get_existing_events(event_deadline)
+new_event = tool_start()
+get_existing_events(new_event.deadline)
