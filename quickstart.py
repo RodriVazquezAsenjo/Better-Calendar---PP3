@@ -28,7 +28,7 @@ def authenticate_google_calendar():
     
     return creds
 
-def get_existing_events():
+def get_existing_events(event_deadline):
     creds = authenticate_google_calendar()
     try:
         service = build("calendar", "v3", credentials=creds)
@@ -39,7 +39,7 @@ def get_existing_events():
             .list(
                 calendarId="primary",
                 timeMin=now,
-                maxResults=15,
+                timeMax = event_deadline,
                 singleEvents=True,
                 orderBy="startTime",
             )

@@ -2,12 +2,20 @@
 # You can delete these comments, but do not change the name of this file
 # Write your code to expect a terminal of 80 characters wide and 24 rows high
 
-#importing the main function from quickstart to obtain the upcoming events
-from quickstart import get_existing_events
+import os.path
 from datetime import datetime
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 #Initial function to run when you open the program. It prompts you with an event you'd like to add. 
     #Potentially it should just prompt you with the option to run?
+#code originally obtained from Google Workspace Google Calendar API. Modified to suit. 
+# If modifying these scopes, delete the file token.json.
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
 
 
 #Convert collected data to an instance of a class
@@ -17,6 +25,23 @@ class Event:
         self.priority = priority
         self.duration = duration
         self.deadline = deadline
+
+def authenticate_google_calendar():
+    creds = None
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                "credentials.json", SCOPES
+            )
+            creds = flow.run_local_server(port=0)
+        with open("token.json", "w") as token:
+            token.write(creds.to_json())
+    
+    return creds
 
 def collect_event_title ():
     while True:
@@ -41,7 +66,7 @@ def collect_event_priority ():
         except ValueError as e:
             print(f'Watchout! You entered {event_priority}, it should be between 1 and 5')
     print("Nice! Let's move to the next step\n")
-    return event_priority 
+    return int(event_priority) 
 
 def collect_event_duration():
     while True:
@@ -54,7 +79,7 @@ def collect_event_duration():
         except ValueError as e:
             print('The duration should be in hours and minutes (hours:minutes format), please try again!')
     print("Nice! Let's move to the next step\n")
-    return event_duration
+    return int(event_duration)
 
 def collect_event_deadline():
     while True:
@@ -77,7 +102,40 @@ def tool_start():
     event_duration = collect_event_duration()
     event_deadline = collect_event_deadline()
     new_event = Event(event_summary, event_priority, event_duration, event_deadline)
+    print (f'Your new event is called {event_summary}, with a priority {event_priority}, with a duration of {event_duration} and a deadline for {event_deadline}')
     return new_event
 
-tool_start()
-#get_existing_events()
+def get_existing_events(event_deadline):
+    creds = authenticate_google_calendar()
+    event_deadline = event_deadline.strftime('%Y-%m-%dT%H:%M:%S') + 'Z'
+    try:
+        service = build("calendar", "v3", credentials=creds)
+        now = datetime.now().isoformat() + "Z"  # 'Z' indicates UTC time
+        print("Getting the upcoming 10 events")
+        events_result = (
+            service.events()
+            .list(
+                calendarId="primary",
+                timeMin=now,
+                timeMax = event_deadline,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
+        )
+        events = events_result.get("items", [])
+
+        if not events:
+            print("No upcoming events found.")
+            return
+
+        for event in events:
+            start = event["start"].get("dateTime", event["start"].get("date"))
+            print(start, event["summary"])
+
+    except HttpError as error:
+        print(f"An error occurred: {error}")
+    
+#tool_start()
+event_deadline = collect_event_deadline()
+get_existing_events(event_deadline)
