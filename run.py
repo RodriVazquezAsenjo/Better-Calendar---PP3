@@ -3,11 +3,20 @@
 # Write your code to expect a terminal of 80 characters wide and 24 rows high
 
 #importing the main function from quickstart to obtain the upcoming events
-from quickstart import main
+from quickstart import get_existing_events
 from datetime import datetime
 
 #Initial function to run when you open the program. It prompts you with an event you'd like to add. 
     #Potentially it should just prompt you with the option to run?
+
+
+#Convert collected data to an instance of a class
+class Event:
+    def __init__(self, summary, priority, duration, deadline):
+        self.summary = summary
+        self.priority = priority
+        self.duration = duration
+        self.deadline = deadline
 
 def collect_event_title ():
     while True:
@@ -63,12 +72,12 @@ def collect_event_deadline():
 
 def tool_start():
     print ("Hi! Let's get the first item of the event\n")
-    collect_event_title()
-    collect_event_priority()
-    collect_event_duration()
-    collect_event_deadline()
-
-#Obtain a list of events from now to the deadline input. 
+    event_summary = collect_event_title()
+    event_priority = collect_event_priority()
+    event_duration = collect_event_duration()
+    event_deadline = collect_event_deadline()
+    new_event = Event(event_summary, event_priority, event_duration, event_deadline)
+    return new_event
 
 tool_start()
-main()
+#get_existing_events()
