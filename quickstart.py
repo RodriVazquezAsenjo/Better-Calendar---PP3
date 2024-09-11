@@ -27,36 +27,3 @@ def authenticate_google_calendar():
             token.write(creds.to_json())
     
     return creds
-
-def get_existing_events(event_deadline):
-    creds = authenticate_google_calendar()
-    try:
-        service = build("calendar", "v3", credentials=creds)
-        now = datetime.datetime.now().isoformat() + "Z"  # 'Z' indicates UTC time
-        print("Getting the upcoming 10 events")
-        events_result = (
-            service.events()
-            .list(
-                calendarId="primary",
-                timeMin=now,
-                timeMax = event_deadline,
-                singleEvents=True,
-                orderBy="startTime",
-            )
-            .execute()
-        )
-        events = events_result.get("items", [])
-
-        if not events:
-            print("No upcoming events found.")
-            return
-
-        for event in events:
-            start = event["start"].get("dateTime", event["start"].get("date"))
-            print(start, event["summary"])
-
-    except HttpError as error:
-        print(f"An error occurred: {error}")
-
-if __name__ == "__main__":
-    get_existing_events()

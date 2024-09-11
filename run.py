@@ -133,8 +133,52 @@ def get_existing_events(event_deadline):
             start = event["start"].get("dateTime", event["start"].get("date"))
             print(start, event["summary"])
 
+        return events_result
+        
+        
+
     except HttpError as error:
         print(f"An error occurred: {error}")
-    
-new_event = tool_start()
-get_existing_events(new_event.deadline)
+
+def allocate_event(new_event, events_result):
+    events = events_result.get('items', [])
+    new_event.start = datetime.now().isoformat() + "Z"  # 'Z' indicates UTC time
+    event_start = events_result["start"].get("dateTime", event["start"].get("date"))
+    event_end = events_result["end"].get("dateTime", event["end"].get("date"))
+    for event in events:
+        time_delta = event_start - new_event.start
+        try: 
+            if time_delta < new_event.duration:
+                new_event.start = event_end
+            else:
+                add_event()
+                break
+        except ValueError as e:
+            print('There are no available spaces before your deadline.')
+    return new_event.start
+
+        
+
+def add_event(new_event):
+    creds = authenticate_google_calendar()
+    service = build("calendar", "v3", credentials=creds)
+    new_event.end = new_event.start + new_event.duration
+    print(new_event.start)
+    event = {
+    'summary': new_event.summary,
+    'start': {
+        'dateTime': new_event.start,
+        #'timeZone': '',
+    },
+    'end': {
+        'dateTime': new_event.end,
+        #'timeZone': '',
+    },
+    #'colorId': '',
+    }
+    event = service.events().insert(calendarId='primary', body=event).execute()
+    print (f"Event created: {event.get('htmlLink')}")
+    print ('new_event.end')
+
+an_existing_event = get_existing_events(collect_event_deadline())
+allocate_event(tool_start(), an_existing_event)
