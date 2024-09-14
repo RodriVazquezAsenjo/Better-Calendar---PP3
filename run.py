@@ -3,7 +3,8 @@
 # Write your code to expect a terminal of 80 characters wide and 24 rows high
 
 import os.path
-from datetime import datetime
+import pytz
+from datetime import datetime, date, timedelta
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -25,6 +26,8 @@ class Event:
         self.priority = priority
         self.duration = duration
         self.deadline = deadline
+        self.start = None
+        self.end = None
 
 def authenticate_google_calendar():
     creds = None
@@ -74,7 +77,8 @@ def collect_event_duration():
         if event_duration == '':
             raise ValueError("Oh no! Seems like you didn't enter a duration, try again!.\n")
         try:
-            event_duration = datetime.strptime(event_duration, '%H:%M')
+            hours, minutes = map(int, event_duration.split(':'))
+            event_duration = timedelta(hours=hours, minutes=minutes)
             break
         except ValueError as e:
             print('The duration should be in hours and minutes (hours:minutes format), please try again!')
@@ -97,88 +101,84 @@ def collect_event_deadline():
 
 def tool_start():
     print ("Hi! Let's get the first item of the event\n")
-    event_summary = collect_event_title()
-    event_priority = collect_event_priority()
-    event_duration = collect_event_duration()
-    event_deadline = collect_event_deadline()
-    new_event = Event(event_summary, event_priority, event_duration, event_deadline)
-    print (f'Your new event is called {event_summary}, with a priority {event_priority}, with a duration of {event_duration} and a deadline for {event_deadline}')
+    
+    summary = collect_event_title()
+    priority = collect_event_priority()
+    duration = collect_event_duration()
+    deadline = collect_event_deadline()
+    new_event = Event(summary, priority, duration, deadline)
+    print (f'Your new event is called {new_event.summary}, with a priority {new_event.priority}, with a duration of {new_event.duration} and a deadline for {new_event.deadline}')
     return new_event
 
-def get_existing_events(event_deadline):
+def get_existing_events(new_event):
+    new_event_deadline = new_event.deadline
     creds = authenticate_google_calendar()
-    event_deadline = event_deadline.strftime('%Y-%m-%dT%H:%M:%S') + 'Z'
+    new_event_deadline = new_event_deadline.strftime('%Y-%m-%dT%H:%M:%S%z') + 'Z'
     try:
         service = build("calendar", "v3", credentials=creds)
         now = datetime.now().isoformat() + "Z"  # 'Z' indicates UTC time
-        print("Getting the upcoming 10 events")
-        events_result = (
+        print("Getting the upcoming events")
+        existing_events = (
             service.events()
             .list(
                 calendarId="primary",
                 timeMin=now,
-                timeMax = event_deadline,
+                timeMax = new_event_deadline,
                 singleEvents=True,
                 orderBy="startTime",
             )
             .execute()
         )
-        events = events_result.get("items", [])
+        events = existing_events.get("items", [])
 
         if not events:
             print("No upcoming events found.")
-            return
+            return []
 
         for event in events:
             start = event["start"].get("dateTime", event["start"].get("date"))
-            print(start, event["summary"])
-
-        return events_result
-        
-        
+            print(start, event["summary"])  
+        return events 
 
     except HttpError as error:
         print(f"An error occurred: {error}")
+        return []
 
-def allocate_event(new_event, events_result):
-    events = events_result.get('items', [])
-    new_event.start = datetime.now().isoformat() + "Z"  # 'Z' indicates UTC time
-    event_start = events_result["start"].get("dateTime", event["start"].get("date"))
-    event_end = events_result["end"].get("dateTime", event["end"].get("date"))
+def allocate_event(new_event, events):
+    new_event.start = datetime.now(pytz.timezone('UTC'))
     for event in events:
-        time_delta = event_start - new_event.start
+        existing_event_start = datetime.strptime(event["start"].get("dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
+        existing_event_end = datetime.strptime(event["end"].get("dateTime", event["end"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
         try: 
+            existing_event_start = existing_event_start.replace(tzinfo = None)
+            new_event.start = new_event.start.replace(tzinfo = None)
+            time_delta = existing_event_start - new_event.start
             if time_delta < new_event.duration:
-                new_event.start = event_end
+                new_event.start = existing_event_end
             else:
-                add_event()
+                add_event(new_event)
                 break
         except ValueError as e:
             print('There are no available spaces before your deadline.')
-    return new_event.start
+    new_event.end = new_event.start + new_event.duration
 
         
 
 def add_event(new_event):
     creds = authenticate_google_calendar()
     service = build("calendar", "v3", credentials=creds)
-    new_event.end = new_event.start + new_event.duration
-    print(new_event.start)
     event = {
     'summary': new_event.summary,
     'start': {
         'dateTime': new_event.start,
-        #'timeZone': '',
     },
     'end': {
         'dateTime': new_event.end,
-        #'timeZone': '',
-    },
-    #'colorId': '',
+    }
     }
     event = service.events().insert(calendarId='primary', body=event).execute()
     print (f"Event created: {event.get('htmlLink')}")
-    print ('new_event.end')
 
-an_existing_event = get_existing_events(collect_event_deadline())
-allocate_event(tool_start(), an_existing_event)
+new_event = tool_start()
+events = get_existing_events(new_event)
+allocate_event (new_event, events)
