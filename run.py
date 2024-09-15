@@ -137,15 +137,24 @@ def get_existing_events(new_event):
 
         for event in events:
             start = event["start"].get("dateTime", event["start"].get("date"))
-            print(start, event["summary"])  
+            print(start, event["summary"])
+            print('\n')  
         return events 
 
     except HttpError as error:
         print(f"An error occurred: {error}")
         return []
 
+def start_time_formatting(x):
+    minute_block = (x.minute // 15 +1) *15 
+    if x.minute == 0:
+        new_event.start = x.replace(hour = x.hour + 1, minute = 0)
+    else:
+        new_event.start = x.replace(minute = minute_block)
+        
 def allocate_event(new_event, events):
-    new_event.start = datetime.now(pytz.timezone('UTC'))
+    current_time = datetime.now(pytz.timezone('UTC'))
+    start_time_formatting(current_time)
     for event in events:
         existing_event_start = datetime.strptime(event["start"].get("dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
         existing_event_end = datetime.strptime(event["end"].get("dateTime", event["end"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
@@ -155,6 +164,7 @@ def allocate_event(new_event, events):
             time_delta = existing_event_start - new_event.start
             if time_delta <= new_event.duration:
                 new_event.start = existing_event_end
+                start_time_formatting(new_event.start)
             else:
                 new_event.end = new_event.start + new_event.duration
                 add_event(new_event)
@@ -178,7 +188,9 @@ def add_event(new_event):
     }
     }
     event = service.events().insert(calendarId='primary', body=event).execute()
-    print (f"Event created: {event.get('htmlLink')}")
+    print (f"Event created: {event.get('htmlLink')}\n")
+    print (f'Your event {new_event.summary} has been added to your calendar from {new_event.start} to {new_event.end} \n')
+    
 
 new_event = tool_start()
 events = get_existing_events(new_event)
