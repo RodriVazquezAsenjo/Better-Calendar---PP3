@@ -153,15 +153,16 @@ def allocate_event(new_event, events):
             existing_event_start = existing_event_start.replace(tzinfo = None)
             new_event.start = new_event.start.replace(tzinfo = None)
             time_delta = existing_event_start - new_event.start
-            if time_delta < new_event.duration:
+            if time_delta <= new_event.duration:
                 new_event.start = existing_event_end
             else:
+                new_event.end = new_event.start + new_event.duration
                 add_event(new_event)
                 break
         except ValueError as e:
             print('There are no available spaces before your deadline.')
-    new_event.end = new_event.start + new_event.duration
 
+    return new_event
         
 
 def add_event(new_event):
@@ -170,10 +171,10 @@ def add_event(new_event):
     event = {
     'summary': new_event.summary,
     'start': {
-        'dateTime': new_event.start,
+        'dateTime': new_event.start.isoformat() + 'Z',
     },
     'end': {
-        'dateTime': new_event.end,
+        'dateTime': new_event.end.isoformat() + 'Z',
     }
     }
     event = service.events().insert(calendarId='primary', body=event).execute()
