@@ -12,12 +12,9 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 #Initial function to run when you open the program. It prompts you with an event you'd like to add. 
-    #Potentially it should just prompt you with the option to run?
 #code originally obtained from Google Workspace Google Calendar API. Modified to suit. 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-
-
 
 #Convert collected data to an instance of a class
 class Event:
@@ -116,7 +113,7 @@ def get_existing_events(new_event):
     new_event_deadline = new_event_deadline.strftime('%Y-%m-%dT%H:%M:%S%z') + 'Z'
     try:
         service = build("calendar", "v3", credentials=creds)
-        now = datetime.now().isoformat() + "Z"  # 'Z' indicates UTC time
+        now = datetime.now(pytz.timezone("Europe/London")).isoformat()
         print("Getting the upcoming events")
         existing_events = (
             service.events()
@@ -147,44 +144,49 @@ def get_existing_events(new_event):
 
 def start_time_formatting(x):
     minute_block = (x.minute // 15 +1) *15 
-    if x.minute == 0:
-        new_event.start = x.replace(hour = x.hour + 1, minute = 0)
+    if minute_block == 60:
+        return x.replace(hour = x.hour + 1, minute = 0)
     else:
-        new_event.start = x.replace(minute = minute_block)
+        return x.replace(minute = minute_block)
+    
         
 def allocate_event(new_event, events):
-    current_time = datetime.now(pytz.timezone('UTC'))
-    start_time_formatting(current_time)
+    current_time = datetime.now(pytz.timezone('Europe/London'))
+    new_event.start = start_time_formatting(current_time)
     for event in events:
         existing_event_start = datetime.strptime(event["start"].get("dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
         existing_event_end = datetime.strptime(event["end"].get("dateTime", event["end"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
-        try: 
-            existing_event_start = existing_event_start.replace(tzinfo = None)
-            new_event.start = new_event.start.replace(tzinfo = None)
-            time_delta = existing_event_start - new_event.start
-            if time_delta <= new_event.duration:
-                new_event.start = existing_event_end
-                start_time_formatting(new_event.start)
-            else:
-                new_event.end = new_event.start + new_event.duration
-                add_event(new_event)
-                break
-        except ValueError as e:
-            print('There are no available spaces before your deadline.')
-
-    return new_event
+        timedelta = existing_event_start - new_event.start
+        print (f'Time difference between {new_event.start} and {existing_event_start} is {timedelta}')
+        if timedelta >= new_event.duration:
+            # Event fits before existing event
+            add_event(new_event)
+            return new_event
+        else:
+            # Push new_event after existing_event_end
+            start_time_formatting(existing_event_end)
+            new_event.start = existing_event_end
+            new_event.end = new_event.start + new_event.duration
+            timedelta = existing_event_start - new_event.start
+            print(f"Event '{new_event.summary}' moved to {new_event.start}")
+    return new_event    
         
 
 def add_event(new_event):
     creds = authenticate_google_calendar()
     service = build("calendar", "v3", credentials=creds)
+    if new_event.start is None or new_event.end is None:
+        print('Error: Either the new event start or end time is set to None')
+        return
     event = {
     'summary': new_event.summary,
     'start': {
-        'dateTime': new_event.start.isoformat() + 'Z',
+        'dateTime': new_event.start.isoformat(),
+        'timeZone': 'Europe/London',
     },
     'end': {
-        'dateTime': new_event.end.isoformat() + 'Z',
+        'dateTime': new_event.end.isoformat(),
+        'timeZone': 'Europe/London',
     }
     }
     event = service.events().insert(calendarId='primary', body=event).execute()
