@@ -130,7 +130,6 @@ def get_existing_events(new_event):
 
         if not events:
             print("No upcoming events found.")
-            return []
 
         for event in events:
             start = event["start"].get("dateTime", event["start"].get("date"))
@@ -153,6 +152,7 @@ def start_time_formatting(x):
 def allocate_event(new_event, events):
     current_time = datetime.now(pytz.timezone('Europe/London'))
     new_event.start = start_time_formatting(current_time)
+    new_event.end = new_event.start + new_event.duration
     for event in events:
         existing_event_start = datetime.strptime(event["start"].get("dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
         existing_event_end = datetime.strptime(event["end"].get("dateTime", event["end"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
@@ -161,7 +161,6 @@ def allocate_event(new_event, events):
         if timedelta >= new_event.duration:
             # Event fits before existing event
             add_event(new_event)
-            return new_event
         else:
             # Push new_event after existing_event_end
             start_time_formatting(existing_event_end)
@@ -176,7 +175,10 @@ def add_event(new_event):
     creds = authenticate_google_calendar()
     service = build("calendar", "v3", credentials=creds)
     if new_event.start is None or new_event.end is None:
-        print('Error: Either the new event start or end time is set to None')
+        print('Error: Either the new event start or end time is set to None\n')
+        print (type(new_event.start))
+        print (type(new_event.end))
+        print (type(new_event.duration))
         return
     event = {
     'summary': new_event.summary,
