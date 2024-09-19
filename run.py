@@ -144,7 +144,10 @@ def get_existing_events(new_event):
 def start_time_formatting(x):
     minute_block = (x.minute // 15 +1) *15 
     if minute_block == 60:
-        return x.replace(hour = x.hour + 1, minute = 0)
+        if x.hour == 23:
+            return x.replace(day = x.day + 1, hour = 0, minute = 0)
+        else:
+            return x.replace(hour = x.hour + 1, minute = 0)
     else:
         return x.replace(minute = minute_block)
     
@@ -153,21 +156,33 @@ def allocate_event(new_event, events):
     current_time = datetime.now(pytz.timezone('Europe/London'))
     new_event.start = start_time_formatting(current_time)
     new_event.end = new_event.start + new_event.duration
+    new_event.deadline = new_event.deadline.replace(tzinfo=pytz.timezone('Europe/London'))
+    event_scheduled = False
     for event in events:
         existing_event_start = datetime.strptime(event["start"].get("dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
         existing_event_end = datetime.strptime(event["end"].get("dateTime", event["end"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
         timedelta = existing_event_start - new_event.start
         print (f'Time difference between {new_event.start} and {existing_event_start} is {timedelta}')
+        print (type(timedelta))
         if timedelta >= new_event.duration:
-            # Event fits before existing event
             add_event(new_event)
+            event_scheduled = True
+            break
         else:
-            # Push new_event after existing_event_end
-            start_time_formatting(existing_event_end)
-            new_event.start = existing_event_end
-            new_event.end = new_event.start + new_event.duration
-            timedelta = existing_event_start - new_event.start
-            print(f"Event '{new_event.summary}' moved to {new_event.start}")
+            print (new_event.deadline)
+            if new_event.start < new_event.deadline:
+                start_time_formatting(existing_event_end)
+                new_event.start = existing_event_end
+                new_event.end = new_event.start + new_event.duration
+                timedelta = existing_event_start - new_event.start
+                print(f"Event '{new_event.summary}' moved to {new_event.start}")
+            else:
+                print('The event exceeds the deadline, your calendar will be readjusted')
+                priority_assessment (new_event, events)
+                event_scheduled = True
+                break
+    if not event_scheduled:
+        add_event(new_event)
     return new_event    
         
 
@@ -182,6 +197,7 @@ def add_event(new_event):
         return
     event = {
     'summary': new_event.summary,
+    'description': f'Priority: {new_event.priority} \nDeadline: {new_event.deadline}',
     'start': {
         'dateTime': new_event.start.isoformat(),
         'timeZone': 'Europe/London',
@@ -195,6 +211,36 @@ def add_event(new_event):
     print (f"Event created: {event.get('htmlLink')}\n")
     print (f'Your event {new_event.summary} has been added to your calendar from {new_event.start} to {new_event.end} \n')
     
+
+def priority_assessment(new_event, events):
+    creds = authenticate_google_calendar()
+    service = build("calendar", "v3", credentials=creds)
+    get_existing_events(new_event)
+    for event in events:
+        try:
+            event_priority = description_breakdown(event.get('description'))
+            event_priority_num = int(event_priority.get('Priority', 5))
+            new_event_priority_num = int(new_event.priority)
+            if event_priority_num > new_event_priority_num:
+                service.events().delete(calendarId='primary', eventId=event['id']).execute()
+                print(f'Event {event["summary"]} has been deleted due to lower priority.')
+                add_event(new_event)
+            else:
+                print(f"Event {event['summary']} has a higher or equal priority than the new event.")
+                return
+        except Exception as e:
+            print(f"Error processing event {event['id']}: {str(e)}")
+    
+def description_breakdown(event):
+    if event is None:
+        return {'Priority': '5'}
+    lines = event.splitlines()
+    event_priority_dict = {}
+    for line in lines:
+        if ':' in line:
+            key, value = line.split(':', 1)
+            event_priority_dict[key.strip()] = value.strip()
+    return event_priority_dict
 
 new_event = tool_start()
 events = get_existing_events(new_event)
