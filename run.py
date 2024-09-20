@@ -107,7 +107,7 @@ def tool_start():
     print (f'Your new event is called {new_event.summary}, with a priority {new_event.priority}, with a duration of {new_event.duration} and a deadline for {new_event.deadline}')
     return new_event
 
-def get_existing_events(new_event):
+def get_existing_events(new_event, use_start_time = False):
     new_event_deadline = new_event.deadline
     creds = authenticate_google_calendar()
     new_event_deadline = new_event_deadline.strftime('%Y-%m-%dT%H:%M:%S%z') + 'Z'
@@ -115,11 +115,14 @@ def get_existing_events(new_event):
         service = build("calendar", "v3", credentials=creds)
         now = datetime.now(pytz.timezone("Europe/London")).isoformat()
         print("Getting the upcoming events")
+        time_min = new_event.start if use_start_time else now
+        if new_event_deadline < time_min:
+            new_event_deadline = (pytz.timezone("Europe/London").localize(datetime.now() + timedelta(days=1))).isoformat()
         existing_events = (
             service.events()
             .list(
                 calendarId="primary",
-                timeMin=now,
+                timeMin=time_min,
                 timeMax = new_event_deadline,
                 singleEvents=True,
                 orderBy="startTime",
@@ -156,7 +159,6 @@ def allocate_event(new_event, events):
     current_time = datetime.now(pytz.timezone('Europe/London'))
     new_event.start = start_time_formatting(current_time)
     new_event.end = new_event.start + new_event.duration
-    new_event.deadline = new_event.deadline.replace(tzinfo=pytz.timezone('Europe/London'))
     event_scheduled = False
     for event in events:
         existing_event_start = datetime.strptime(event["start"].get("dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
@@ -169,20 +171,15 @@ def allocate_event(new_event, events):
             event_scheduled = True
             break
         else:
-            print (new_event.deadline)
-            if new_event.start < new_event.deadline:
-                start_time_formatting(existing_event_end)
-                new_event.start = existing_event_end
-                new_event.end = new_event.start + new_event.duration
-                timedelta = existing_event_start - new_event.start
-                print(f"Event '{new_event.summary}' moved to {new_event.start}")
-            else:
-                print('The event exceeds the deadline, your calendar will be readjusted')
-                priority_assessment (new_event, events)
-                event_scheduled = True
-                break
+            start_time_formatting(existing_event_end)
+            new_event.start = existing_event_end
+            new_event.end = new_event.start + new_event.duration
+            timedelta = existing_event_start - new_event.start
+            print(f"Event '{new_event.summary}' moved to {new_event.start}")
     if not event_scheduled:
-        add_event(new_event)
+        print('The event exceeds the deadline, your calendar will be readjusted')
+        priority_assessment (new_event, events)
+        event_scheduled = True
     return new_event    
         
 
@@ -215,7 +212,9 @@ def add_event(new_event):
 def priority_assessment(new_event, events):
     creds = authenticate_google_calendar()
     service = build("calendar", "v3", credentials=creds)
-    get_existing_events(new_event)
+    print('Assessing priority of existing events')
+    print (new_event.start)
+    events = get_existing_events(new_event, use_start_time=True)
     for event in events:
         try:
             event_priority = description_breakdown(event.get('description'))
@@ -243,5 +242,5 @@ def description_breakdown(event):
     return event_priority_dict
 
 new_event = tool_start()
-events = get_existing_events(new_event)
+events = get_existing_events(new_event, use_start_time=False)
 allocate_event (new_event, events)
