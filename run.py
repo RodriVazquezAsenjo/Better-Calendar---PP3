@@ -125,7 +125,8 @@ def start_time_formatting(x):
     result = x.replace(day = x.day + 1, hour = 0, minute = 0) if x.hour == 23 else x.replace(hour = x.hour + 1, minute = 0)
     return result if minute_block == 60 else x.replace(minute = minute_block)     
   
-def allocate_event(new_event, events):
+def allocate_event(new_event):
+    events = get_existing_events(new_event, use_start_time=False)
     new_event.start = start_time_formatting(current_time)
     for event in events:
         existing_event_start = datetime.strptime(event["start"].get("dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
@@ -195,7 +196,8 @@ def priority_assessment(new_event, events):
                     add_event(new_event)
                     new_event.added = True
                     service.events().delete(calendarId='primary', eventId=event['id']).execute()
-                    reschedule_event(event)
+                    print(f"Event '{event['summary']}' has been removed from your calendar.")
+                    reschedule_event(existing_event)
                     break
                 else:
                     start_time_formatting(existing_event_end)
@@ -203,17 +205,22 @@ def priority_assessment(new_event, events):
                     print(f"Event '{new_event.summary}' moved to {new_event.start}")
                     print(f"Event {event['summary']} has a higher or equal priority than the new event.")
                     if new_event.start > new_event.deadline:
-                        user_input = input('Would you like to extend the deadline? Enter y/n: \n')
+                        user_input = input ('Would you like to extend the deadline? Enter y/n: \n')
                         if user_input == 'y':
                             new_deadline = collect_event_deadline()
                             new_event.deadline = new_deadline
                             print(f"New deadline for '{new_event.summary}' is {new_event.deadline}")
-                            allocate_event(new_event, events)
+                            allocate_event(new_event)
                         else:
                             print ("The event won't be added to your calendar")
                             return
+                    else:
+                        continue
         except Exception as e:
             print(f"Error processing event {event['id']}: {str(e)}")
+        if not new_event.added and new_event.start <= new_event.deadline:
+            print(f"Adding event '{new_event.summary}' before the deadline {new_event.deadline}")
+            add_event(new_event)
 
 def description_breakdown(event):
     if event is None:
@@ -227,29 +234,20 @@ def description_breakdown(event):
     return event_priority_dict
 def main():
     new_event = tool_start()
-    events = get_existing_events(new_event, use_start_time=False)
-    allocate_event (new_event, events)
+    allocate_event (new_event)
 
-def reschedule_event(event):
-    print(f'The event {event.summary} has been removed from your calendar. \n'
-          'The details were: \n'
-          f'Summary: {event.summary} \n'
-          f'Priority: {event.priority} \n'
-          f'Duration: {event.duration} \n'
-          f'Deadline: {event.deadline} \n'
+def reschedule_event(existing_event):
+    print(f'The details were: \n'
+          f'Summary: {existing_event.summary} \n'
+          f'Priority: {existing_event.priority} \n'
+          f'Duration: {existing_event.duration} \n'
+          f'Deadline: {existing_event.deadline} \n'
           'Do you want to reschedule the event?')
     reschedule = input('Enter y/n: \n')
     if reschedule == 'y':
-        print('Do you want to use the same details for the event?')
-        same_details = input('Enter y/n: \n')
-        if same_details == 'y':
-            rescheduled_event = Event(event.summary, event.priority, event.duration, event.deadline)
-            main(rescheduled_event)
-        else:
-            new_event = tool_start()
             main()
     else:
         print('The event has been removed from your calendar. \n')
         return
-
+new_event = None
 main()
