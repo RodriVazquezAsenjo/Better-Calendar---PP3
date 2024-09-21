@@ -19,6 +19,7 @@ class Event:
         self.deadline = deadline
         self.start = None
         self.end = None
+        self.added = False
 
 def authenticate_google_calendar():
     creds = None
@@ -126,7 +127,6 @@ def start_time_formatting(x):
   
 def allocate_event(new_event, events):
     new_event.start = start_time_formatting(current_time)
-    event_scheduled = False
     for event in events:
         existing_event_start = datetime.strptime(event["start"].get("dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
         existing_event_end = datetime.strptime(event["end"].get("dateTime", event["end"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
@@ -134,16 +134,15 @@ def allocate_event(new_event, events):
         print (f'Time difference between {new_event.start} and {existing_event_start} is {timedelta}')
         if timedelta >= new_event.duration:
             add_event(new_event)
-            event_scheduled = True
+            new_event.added = True
             break
         else:
             start_time_formatting(existing_event_end)
             new_event.start = existing_event_end
             print(f"Event '{new_event.summary}' moved to {new_event.start}")
-    if not event_scheduled:
+    if not new_event.added:
         print('The event exceeds the deadline, your calendar will be readjusted')
         priority_assessment (new_event, events)
-        event_scheduled = True
     return new_event    
 
 def add_event(new_event):
@@ -173,24 +172,46 @@ def priority_assessment(new_event, events):
     creds = authenticate_google_calendar()
     service = build("calendar", "v3", credentials=creds)
     print('Assessing priority of existing events')
-    events = get_existing_events(new_event, use_start_time=True)
+    events = get_existing_events(new_event, use_start_time=False)
+    new_event.start = start_time_formatting(current_time)
     if not events:
         add_event(new_event)
-        return
+        new_event.added = True
     for event in events:
+        existing_event_end = datetime.strptime(event["end"].get("dateTime", event["end"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
+        event_start = datetime.strptime(event["start"].get("dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
+        event_duration = existing_event_end - event_start
+        event_priority = description_breakdown(event.get('description', ''))
+        event_priority_num = int(event_priority.get('Priority', 5))
+        description_lines = event.get('description', '').split('\n')
+        event_deadline = description_lines[1].split(': ')[1] if len(description_lines) > 1 and 'Deadline' in description_lines[1] else collect_event_deadline()
+        existing_event = Event(event['summary'], event_priority_num, event_duration, event_deadline)
+        print(f"Existing Event: {existing_event.summary}, Priority: {existing_event.priority}, Duration: {existing_event.duration}, Deadline: {existing_event.deadline}")
         try:
-            event_priority = description_breakdown(event.get('description'))
-            event_priority_num = int(event_priority.get('Priority', 5))
             new_event_priority_num = int(new_event.priority)
-            if event_priority_num > new_event_priority_num:
-                print(f'Event {event["summary"]} has been reallocated due to lower priority.')
-                add_event(new_event)
-                retrieved_event = retrieve_event(event)
-                service.events().delete(calendarId='primary', eventId=event['id']).execute()
-                allocate_event(retrieved_event, events)
-                return
-            else:
-                print(f"Event {event['summary']} has a higher or equal priority than the new event.")
+            if not new_event.added:
+                if event_priority_num > new_event_priority_num:
+                    print(f'Event {event["summary"]} has lower priority.')
+                    add_event(new_event)
+                    new_event.added = True
+                    service.events().delete(calendarId='primary', eventId=event['id']).execute()
+                    reschedule_event(event)
+                    break
+                else:
+                    start_time_formatting(existing_event_end)
+                    new_event.start = existing_event_end
+                    print(f"Event '{new_event.summary}' moved to {new_event.start}")
+                    print(f"Event {event['summary']} has a higher or equal priority than the new event.")
+                    if new_event.start > new_event.deadline:
+                        user_input = input('Would you like to extend the deadline? Enter y/n: \n')
+                        if user_input == 'y':
+                            new_deadline = collect_event_deadline()
+                            new_event.deadline = new_deadline
+                            print(f"New deadline for '{new_event.summary}' is {new_event.deadline}")
+                            allocate_event(new_event, events)
+                        else:
+                            print ("The event won't be added to your calendar")
+                            return
         except Exception as e:
             print(f"Error processing event {event['id']}: {str(e)}")
 
@@ -204,24 +225,31 @@ def description_breakdown(event):
             key, value = line.split(':', 1)
             event_priority_dict[key.strip()] = value.strip()
     return event_priority_dict
+def main():
+    new_event = tool_start()
+    events = get_existing_events(new_event, use_start_time=False)
+    allocate_event (new_event, events)
 
-def retrieve_event(event):
-    creds = authenticate_google_calendar()
-    service = build("calendar", "v3", credentials=creds)
-    if event is None:
-        print('Error: Event is None')
+def reschedule_event(event):
+    print(f'The event {event.summary} has been removed from your calendar. \n'
+          'The details were: \n'
+          f'Summary: {event.summary} \n'
+          f'Priority: {event.priority} \n'
+          f'Duration: {event.duration} \n'
+          f'Deadline: {event.deadline} \n'
+          'Do you want to reschedule the event?')
+    reschedule = input('Enter y/n: \n')
+    if reschedule == 'y':
+        print('Do you want to use the same details for the event?')
+        same_details = input('Enter y/n: \n')
+        if same_details == 'y':
+            rescheduled_event = Event(event.summary, event.priority, event.duration, event.deadline)
+            main(rescheduled_event)
+        else:
+            new_event = tool_start()
+            main()
+    else:
+        print('The event has been removed from your calendar. \n')
         return
-    event = service.events().get(calendarId='primary', eventId=event['id']).execute()
-    start = event["start"].get("dateTime", event["start"].get("date"))
-    end = event["end"].get("dateTime", event["end"].get("date"))
-    event_start = datetime.strptime(start, '%Y-%m-%dT%H:%M:%S%z')
-    event_end = datetime.strptime(end, '%Y-%m-%dT%H:%M:%S%z')
-    event_priority = description_breakdown(event.get('description')).get('Priority', 5)
-    event_duration = event_end - event_start
-    event_deadline = event['description'].split('\n')[1].split(': ')[1]
-    retrieved_event = Event(event['summary'], event_priority, event_duration, event_deadline)
-    return retrieved_event
 
-new_event = tool_start()
-events = get_existing_events(new_event, use_start_time=False)
-allocate_event (new_event, events)
+main()
