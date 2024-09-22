@@ -27,7 +27,8 @@ class Event:
 def authenticate_google_calendar():
     flow = InstalledAppFlow.from_client_secrets_file(
         'credentials.json',
-        scopes=['https://www.googleapis.com/auth/calendar']
+        scopes=['https://www.googleapis.com/auth/calendar'],
+        redirect_uri='https://better-calendar-1ab256c687f2.herokuapp.com/'
     )
     
     # This will output the authorization URL
