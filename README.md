@@ -96,6 +96,8 @@ might have regarding their calendars. It is understood that all of these are met
 
 ## Flowchart
 
+![Flowchart] (documentation/wireframe.png)
+
 ## Data Model
 
 Input is received from the user. Data is retrieved from the Google Calendar API, analysed based on their
