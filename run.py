@@ -231,9 +231,15 @@ def allocate_event(new_event):
             new_event.start = existing_event_end
             print(f"Event '{new_event.summary}' moved to {new_event.start}")
     if not new_event.added:
-        print('The event exceeds the deadline, '
-              'your calendar will be readjusted')
-        priority_assessment(new_event, events)
+        if new_event.start > new_event.deadline:
+            print('The event exceeds the deadline, '
+                'your calendar will be readjusted')
+            priority_assessment(new_event, events)
+        else:
+            add_event(new_event)
+            new_event.added = True
+            return
+            
     return new_event
 
 # original code amended from https://developers.google.com/calendar/quickstart/python
