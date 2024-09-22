@@ -206,14 +206,13 @@ Linking with GitHub for Deployment:
 
 Go to the Deploy tab in your app’s configuration page.
 Under Deployment Method, select GitHub. If prompted, confirm the connection to your GitHub account.
-Search for your GitHub repository (for example, elainebroche-dev/ms3-event-scheduler) and click Connect to 
+Search for your GitHub repository and click Connect to 
 link your Heroku app with your repository. Choose whether to enable Automatic Deploys, which will deploy the app 
 whenever you push changes to the repository, or deploy manually by clicking Deploy Branch.
 
 Running the App:
 
 After the deployment completes, you can run the app by clicking the Open App button on the Heroku dashboard.
-The live version of your project can be accessed at: https://ms3-event-scheduler.herokuapp.com/.
 
 ## Acknowledgments
 Thank you to my mentor Brian Maccharia, who gave me valuable insights and discussions. 
