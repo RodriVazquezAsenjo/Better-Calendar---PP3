@@ -1,38 +1,5 @@
-![CI logo](https://codeinstitute.s3.amazonaws.com/fullstack/ci_logo_small.png)
-
-Welcome,
-
-This is the Code Institute student template for deploying your third portfolio project, the Python command-line project. The last update to this file was: **May 14, 2024**
-
-## Reminders
-
-- Your code must be placed in the `run.py` file
-- Your dependencies must be placed in the `requirements.txt` file
-- Do not edit any of the other files or your code may not deploy properly
-
-## Creating the Heroku app
-
-When you create the app, you will need to add two buildpacks from the _Settings_ tab. The ordering is as follows:
-
-1. `heroku/python`
-2. `heroku/nodejs`
-
-You must then create a _Config Var_ called `PORT`. Set this to `8000`
-
-If you have credentials, such as in the Love Sandwiches project, you must create another _Config Var_ called `CREDS` and paste the JSON into the value field.
-
-Connect your GitHub repository and deploy as normal.
-
-## Constraints
-
-The deployment terminal is set to 80 columns by 24 rows. That means that each line of text needs to be 80 characters or less otherwise it will be wrapped onto a second line.
-
----
-
-Happy coding!
-
-
 # Project 3 - Better Calendar
+[View the live project here](https://better-calendar-1ab256c687f2.herokuapp.com/)
 
 ## Table of Contents
 - [Introduction](#introduction)
@@ -207,4 +174,46 @@ Due to time constraints this feature has not been added.
 
 ## Deployment
 
+First, update the requirements.txt file to include all necessary project dependencies. Follow these steps:
+
+Open a terminal and run: pip3 freeze > requirements.txt
+Commit the updated requirements.txt file to your GitHub repository and push the changes.
+Log in to Heroku, or create a new account if you don’t have one already.
+
+In the Heroku dashboard, click on Create New App. For new users, you’ll see a button right on the screen; for
+existing users, you can find the option under the New dropdown at the top-right corner.
+
+On the Create New App page, choose a unique name for your application, select the region, and click Create app.
+
+Once your app is created, you’ll land on the app’s configuration page. You’ll need to configure settings on the 
+Settings and Deploy tabs.
+
+Setting Environment Variables:
+
+Go to the Settings tab, scroll down to the Config Vars section, and click Reveal Config Vars.
+In the key field, enter 'CREDS', and in the value field, paste the content of your creds.json file (which contains
+your credentials for accessing the Google API). Then, click Add. Instructions for generating the creds.json file 
+are available in the Google API and Spreadsheet Setup section above.
+
+Configuring Buildpacks:
+
+Still in the Settings tab, scroll down to the Buildpacks section.
+Click Add buildpack, select Python, and save the changes.
+Add another buildpack, select Node.js, and save the changes again. Make sure Python is listed first, followed 
+by Node.js.
+
+Linking with GitHub for Deployment:
+
+Go to the Deploy tab in your app’s configuration page.
+Under Deployment Method, select GitHub. If prompted, confirm the connection to your GitHub account.
+Search for your GitHub repository (for example, elainebroche-dev/ms3-event-scheduler) and click Connect to 
+link your Heroku app with your repository. Choose whether to enable Automatic Deploys, which will deploy the app 
+whenever you push changes to the repository, or deploy manually by clicking Deploy Branch.
+
+Running the App:
+
+After the deployment completes, you can run the app by clicking the Open App button on the Heroku dashboard.
+The live version of your project can be accessed at: https://ms3-event-scheduler.herokuapp.com/.
+
 ## Acknowledgments
+Thank you to my mentor Brian Maccharia, who gave me valuable insights and discussions. 
