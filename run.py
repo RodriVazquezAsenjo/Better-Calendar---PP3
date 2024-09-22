@@ -33,12 +33,12 @@ def authenticate_google_calendar():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', scopes=[
-                'https://www.googleapis.com/auth/calendar'])
-            creds = flow.run_console()  # Use run_console instead of run_local_server
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-    return creds
+            "credentials.json", SCOPES
+            )
+            creds = flow.run_local_server(port=0)
+    # Save the credentials for the next run
+    with open("token.json", "w") as token:
+      token.write(creds.to_json())
 
 # original code amended from https://developers.google.com/calendar/quickstart/python
 def authenticate_and_build_service():
