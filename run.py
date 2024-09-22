@@ -6,6 +6,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import os
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 current_time = datetime.now(pytz.timezone('Europe/London'))
@@ -23,31 +24,22 @@ class Event:
         self.added = False
 
 
-# original code amended from https://developers.google.com/calendar/quickstart/python
 def authenticate_google_calendar():
-    creds = None
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-            "credentials.json", SCOPES
-            )
-            creds = flow.run_local_server(port=0)
-    # Save the credentials for the next run
-    with open("token.json", "w") as token:
-      token.write(creds.to_json())
+    flow = InstalledAppFlow.from_client_secrets_file(
+        'path_to_your_credentials.json',
+        scopes=['https://www.googleapis.com/auth/calendar']
+    )
+    
+    # This will output the authorization URL
+    auth_url, _ = flow.authorization_url()
+    print(f'Please go to this URL to authorize the application: {auth_url}')
+    
+    # Input the authorization code manually
+    code = input('Enter the authorization code: ')
+    flow.fetch_token(code=code)
 
-# original code amended from https://developers.google.com/calendar/quickstart/python
-def authenticate_and_build_service():
-    """
-    Handles Google Calendar authentication and returns the service object.
-    """
-    creds = authenticate_google_calendar()
-    service = build("calendar", "v3", credentials=creds)
-    return creds, service
+    creds = flow.credentials
+    return creds
 
 
 def collect_event_title():
