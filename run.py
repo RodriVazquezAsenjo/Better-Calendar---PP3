@@ -23,6 +23,7 @@ class Event:
         self.added = False
 
 
+# original code amended from https://developers.google.com/calendar/quickstart/python
 def authenticate_google_calendar():
     creds = None
     if os.path.exists("token.json"):
@@ -37,11 +38,24 @@ def authenticate_google_calendar():
             creds = flow.run_local_server(port=0)
         with open("token.json", "w") as token:
             token.write(creds.to_json())
-
     return creds
+
+# original code amended from https://developers.google.com/calendar/quickstart/python
+def authenticate_and_build_service():
+    """
+    Handles Google Calendar authentication and returns the service object.
+    """
+    creds = authenticate_google_calendar()
+    service = build("calendar", "v3", credentials=creds)
+    return creds, service
 
 
 def collect_event_title():
+    """
+    Function to collect the event title from the user.
+    The function will raise an error if the title is
+    empty or longer than 100 characters.
+    """
     while True:
         event_summary = input(('Enter your event title (max 100 chars): \n'))
         if len(event_summary) == 0:
@@ -55,6 +69,10 @@ def collect_event_title():
 
 
 def collect_event_priority():
+    """
+    Function to collect the event priority from the user.
+    The function will raise an error if the priority is
+    not an integer between 1 and 5."""
     while True:
         try:
             event_priority = int(input('Enter event priority '
@@ -69,6 +87,11 @@ def collect_event_priority():
 
 
 def collect_event_duration():
+    """
+    Function to collect the event duration from the user.
+    The function will raise an error if the duration is
+    not in the HH:MM format.
+    """
     while True:
         try:
             event_duration = input('Enter event duration (HH:MM):\n').strip()
@@ -80,6 +103,11 @@ def collect_event_duration():
 
 
 def collect_event_deadline():
+    """
+    Function to collect the event deadline from the user.
+    The function will raise an error if the deadline is
+    not in the dd/mm/yyyy HH:MM format.
+    """
     while True:
         try:
             deadline_input = input('Enter deadline '
@@ -94,6 +122,13 @@ def collect_event_deadline():
 
 
 def tool_start():
+    """
+    Function to start the tool and collect the event details.
+    The function will call the collect_event_title,
+    collect_event_priority, collect_event_duration,
+    and collect_event_deadline functions to get the
+    event details from the user.
+    """
     print("Hi! Let's get the first item of the event\n")
     summary = collect_event_title()
     priority = collect_event_priority()
@@ -105,8 +140,14 @@ def tool_start():
           f'{new_event.duration} and a deadline for {new_event.deadline}')
     return new_event
 
-
+ 
+# original code amended from https://developers.google.com/calendar/quickstart/python
 def get_existing_events(new_event, use_start_time=False):
+    """
+    Function to get the upcoming events from the user's calendar.
+    The function will return the events that are scheduled
+    between the current time and the deadline of the new event.
+    """
     creds = authenticate_google_calendar()
     service = build("calendar", "v3", credentials=creds)
     time_min = new_event.start if use_start_time else current_time
@@ -141,6 +182,11 @@ def get_existing_events(new_event, use_start_time=False):
 
 
 def start_time_formatting(x):
+    """
+    Function to format the start time of the event.
+    The function will round the start time to the nearest
+    15-minute block and return the updated time.
+    """
     minute_block = (x.minute // 15 + 1) * 15
     if x.hour == 23:
         result = x.replace(day=x.day + 1, hour=0, minute=0)
@@ -154,6 +200,16 @@ def start_time_formatting(x):
 
 
 def allocate_event(new_event):
+    """
+    Function to allocate the new event to the user's calendar.
+    The function will call the get_existing_events function
+    to get the upcoming events from the user's calendar.
+    The function will then check if the new event can be
+    scheduled between the existing events. If the event
+    can't be scheduled, the function will call the
+    priority_assessment function to check if the new event
+    has a higher priority than the existing events.
+    """
     events = get_existing_events(new_event, use_start_time=False)
     new_event.start = start_time_formatting(current_time)
     for event in events:
@@ -180,8 +236,15 @@ def allocate_event(new_event):
         priority_assessment(new_event, events)
     return new_event
 
-
+# original code amended from https://developers.google.com/calendar/quickstart/python
 def add_event(new_event):
+    """
+    Function to add the new event to the user's calendar.
+    The function will call the authenticate_google_calendar
+    function to authenticate the user's calendar.
+    The function will then create the event dictionary
+    and add the event to the user's calendar.
+    """
     creds = authenticate_google_calendar()
     service = build("calendar", "v3", credentials=creds)
     new_event.end = new_event.start + new_event.duration
@@ -208,81 +271,123 @@ def add_event(new_event):
 
 
 def priority_assessment(new_event, events):
+    """
+    Function to assess the priority of the new event.
+    The function will call the get_existing_events function
+    to get the upcoming events from the user's calendar.
+    The function will then check if the new event has a
+    higher priority than the existing events. If the new
+    event has a higher priority, the function will call
+    the add_event function to add the new event to the
+    user's calendar. If the new event has a lower priority,
+    the function will call the add_event function to add
+    the new event to the user's calendar and remove the
+    existing event with the lower priority.
+    """
     creds = authenticate_google_calendar()
     service = build("calendar", "v3", credentials=creds)
     print('Assessing priority of existing events')
     events = get_existing_events(new_event, use_start_time=False)
     new_event.start = start_time_formatting(current_time)
-    if not events:
-        add_event(new_event)
-        new_event.added = True
     for event in events:
-        existing_event_end = datetime.strptime(event["end"].get(
-            "dateTime", event["end"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
-        event_start = datetime.strptime(event["start"].get(
-            "dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
-        event_duration = existing_event_end - event_start
-        event_priority = description_breakdown(event.get('description', ''))
-        event_priority_num = int(event_priority.get('Priority', 5))
-        description_lines = event.get('description', '').split('\n')
-        if len(description_lines) > 1 and 'Deadline' in description_lines[1]:
-            try:
-                event_deadline = description_lines[1].split(': ')[1]
-            except IndexError:
-                print('Error: Invalid format for'
-                      ' deadline in the event description.')
-                event_deadline = collect_event_deadline()
-        else:
-            event_deadline = collect_event_deadline()
-        existing_event = Event(event['summary'], event_priority_num,
-                               event_duration, event_deadline)
-        print(f'Existing Event: {existing_event.summary}, '
-              f'Priority: {existing_event.priority}, '
-              f'Duration: {existing_event.duration}, '
-              f'Deadline: {existing_event.deadline}')
         try:
-            new_event_priority_num = int(new_event.priority)
             if not new_event.added:
-                if event_priority_num > new_event_priority_num:
+                existing_event = obtain_current_event_info(event)
+                if int(existing_event.priority) > int(new_event.priority):
                     print(f'Event {event["summary"]} has lower priority.')
-                    add_event(new_event)
-                    new_event.added = True
+                    # original code amended from 
+                    # https://developers.google.com/calendar/quickstart/python
                     service.events().delete(calendarId='primary',
                                             eventId=event['id']).execute()
+                    add_event(new_event)
+                    new_event.added = True
                     print(f"Event '{event['summary']}' has been "
                           " removed from your calendar.")
                     reschedule_event(existing_event)
                     break
                 else:
-                    start_time_formatting(existing_event_end)
-                    new_event.start = existing_event_end
-                    print(f"Event '{new_event.summary}' "
-                          f"moved to {new_event.start}")
+                    start_time_formatting(existing_event.end)
+                    new_event.start = existing_event.end
                     print(f"Event {event['summary']} has a higher "
-                          f"or equal priority than the new event.")
+                          f"or equal priority than the new event."
+                          f"{new_event.summary} has been moved to {new_event.start}")
                     if new_event.start > new_event.deadline:
-                        user_input = input('Would you like to extend '
-                                           'the deadline? Enter y/n: \n')
-                        if user_input == 'y':
-                            new_deadline = collect_event_deadline()
-                            new_event.deadline = new_deadline
-                            print(f"New deadline for '{new_event.summary}' "
-                                  f"is {new_event.deadline}")
-                            allocate_event(new_event)
-                        else:
-                            print("The event won't be added to your calendar")
-                            return
-                    else:
-                        continue
+                        deadline_extension(new_event)
         except Exception as e:
             print(f"Error processing event {event['id']}: {str(e)}")
-        if not new_event.added and new_event.start <= new_event.deadline:
-            print(f"Adding event '{new_event.summary}' "
-                  f"before the deadline {new_event.deadline}")
-            add_event(new_event)
+    if not new_event.added:
+        print('No more future events found in your calendar')
+        add_event(new_event)
+        new_event.added = True
+        return
+        
+
+def obtain_current_event_info(event):
+    """
+    Function to obtain the information of the current event.
+    The function will get the start and end time of the
+    existing event and calculate the duration of the event.
+    The function will then call the description_breakdown
+    function to break down the event description and get
+    the priority of the event.
+    """
+    existing_event_end = datetime.strptime(event["end"].get(
+        "dateTime", event["end"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
+    event_start = datetime.strptime(event["start"].get(
+        "dateTime", event["start"].get("date")), '%Y-%m-%dT%H:%M:%S%z')
+    event_duration = existing_event_end - event_start
+    event_priority = description_breakdown(event.get('description', ''))
+    event_priority_num = int(event_priority.get('Priority', 5))
+    description_lines = event.get('description', '').split('\n')
+    if len(description_lines) > 1 and 'Deadline' in description_lines[1]:
+        try:
+            event_deadline = description_lines[1].split(': ')[1]
+        except IndexError:
+            print('Error: Invalid format for'
+                  ' deadline in the event description.')
+            event_deadline = collect_event_deadline()
+    else:
+        event_deadline = collect_event_deadline()
+    existing_event = Event(event['summary'], event_priority_num,
+                           event_duration, event_deadline)
+    existing_event.start = event_start
+    existing_event.end = existing_event_end
+    print(f'Existing Event: {existing_event.summary}, '
+          f'Priority: {existing_event.priority}, '
+          f'Duration: {existing_event.duration}, '
+          f'Deadline: {existing_event.deadline}')
+    return existing_event
+
+
+def deadline_extension(new_event):
+    """
+    Function to extend the deadline of the new event.
+    The function will ask the user if they want to extend
+    the deadline of the new event. If the user wants to
+    extend the deadline, the function will call the
+    collect_event_deadline function to get the new deadline
+    from the user. The function will then call the
+    allocate_event function to allocate the new event.
+    """
+    user_input = input('Would you like to extend '
+                        'the deadline? Enter y/n: \n')
+    if user_input == 'y':
+        new_deadline = collect_event_deadline()
+        new_event.deadline = new_deadline
+        print(f"New deadline for '{new_event.summary}' "
+                f"is {new_event.deadline}")
+        allocate_event(new_event)
+    else:
+        print("The event won't be added to your calendar")
+        return
 
 
 def description_breakdown(event):
+    """
+    Function to break down the event description.
+    The function will split the event description into
+    lines and create a dictionary with the key-value pairs.
+    """
     if event is None:
         return {'Priority': '5'}
     lines = event.splitlines()
@@ -295,11 +400,27 @@ def description_breakdown(event):
 
 
 def main():
+    """
+    Function to start the tool and allocate the new event.
+    The function will call the tool_start function to get
+    the event details from the user. The function will then
+    call the allocate_event function to allocate the new
+    event to the user's calendar.
+    """
     new_event = tool_start()
     allocate_event(new_event)
 
 
 def reschedule_event(existing_event):
+    """
+    Function to reschedule the existing event.
+    The function will ask the user if they want to
+    reschedule the existing event. If the user wants
+    to reschedule the event, the function will call the
+    main function to start the tool again. If the user
+    doesn't want to reschedule the event, the function
+    will print a message that the event has been removed.
+    """
     print(f'The details were: \n'
           f'Summary: {existing_event.summary} \n'
           f'Priority: {existing_event.priority} \n'
@@ -316,5 +437,5 @@ def reschedule_event(existing_event):
 
 new_event = None
 
-if __name__ == "__run__":
+if __name__ == "__main__":
     main()
