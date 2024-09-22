@@ -96,7 +96,7 @@ might have regarding their calendars. It is understood that all of these are met
 
 ## Flowchart
 
-![Flowchart] (documentation/wireframe.png)
+![Flowchart](documentation/wireframe.png)
 
 ## Data Model
 
