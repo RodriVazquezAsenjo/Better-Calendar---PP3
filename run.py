@@ -26,7 +26,7 @@ class Event:
 
 def authenticate_google_calendar():
     flow = InstalledAppFlow.from_client_secrets_file(
-        'path_to_your_credentials.json',
+        'views/credentials.json',
         scopes=['https://www.googleapis.com/auth/calendar']
     )
     
