@@ -27,15 +27,15 @@ class Event:
 def authenticate_google_calendar():
     flow = InstalledAppFlow.from_client_secrets_file(
         'credentials.json',
-        scopes=['https://www.googleapis.com/auth/calendar']
+        scopes=['https://www.googleapis.com/auth/calendar'],
     )
-    auth_url, _ = flow.authorization_url(access_type='offline', include_granted_scopes='true')
+    flow.redirect_uri = 'https://better-calendar-1ab256c687f2.herokuapp.com/'
+    auth_url, _ = flow.authorization_url()
     print(f'Please go to this URL to authorize the application: {auth_url}')
     code = input('Enter the authorization code: ')
     flow.fetch_token(code=code)
     creds = flow.credentials
     return creds
-
 
 
 def collect_event_title():
