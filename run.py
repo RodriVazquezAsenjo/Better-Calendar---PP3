@@ -439,5 +439,3 @@ new_event = None
 
 if __name__ == "__main__":
     main()
-
-just for the commit
